@@ -9,15 +9,25 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+  catalog:
+    image: ${CATALOG_IMAGE:?Set CATALOG_IMAGE in catalog.env}
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
   nginx:
     image: nginx:stable-alpine
     restart: unless-stopped
     ports:
       - "80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${DEPLOY_ROOT:?Set DEPLOY_ROOT}/config/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - api
+      - catalog
     logging:
       driver: json-file
       options:

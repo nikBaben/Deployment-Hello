@@ -1,8 +1,8 @@
-name: Deploy hello world
+name: Deploy changed services
 on:
   push:
     branches: [main]
-    paths: [image.env, compose.yaml, nginx.conf, deploy.sh, .github/workflows/deploy.yml]
+    paths: [image.env, catalog.env, compose.yaml, nginx.conf, deploy.sh, .github/workflows/deploy.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -30,7 +30,7 @@ jobs:
       - name: Upload release
         run: |
           ssh -T -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p /home/deploy/hello-demo/releases/$GITHUB_SHA"
-          tar -czf - compose.yaml nginx.conf image.env deploy.sh |
+          tar -czf - compose.yaml nginx.conf image.env catalog.env deploy.sh |
             ssh -T -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "tar -xzf - -C /home/deploy/hello-demo/releases/$GITHUB_SHA"
       - name: Apply deployment
         run: |

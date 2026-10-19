@@ -1,23 +1,37 @@
 # Deployment-Hello
 
-Небольшой учебный деплой: интернет → NGINX:80 → FastAPI:8000.
-Два контейнера, без базы данных, Kubernetes и сборки исходников на сервере.
+Небольшой учебный деплой: интернет → NGINX:80 → FastAPI:8000 или Catalog на Go:8080.
+Три контейнера, без базы данных, Kubernetes и сборки исходников на сервере.
 
 ## Как работает
 
-В [Account-Service-Hello](https://github.com/nikBaben/Account-Service-Hello) проходят тесты и сборка. Его workflow отдельным SSH deploy key коммитит новый digest в `image.env`. Push этого файла в `main` запускает `.github/workflows/deploy.yml`.
+В [Account-Service-Hello](https://github.com/nikBaben/Account-Service-Hello) и [Catalog-Service-Hello](https://github.com/nikBaben/Catalog-Service-Hello) проходят собственные тесты и сборка. Каждый CI публикует только свой образ и отдельным SSH deploy key обновляет только свой файл версии: `image.env` или `catalog.env`. Push запускает `.github/workflows/deploy.yml`.
 
-Workflow передаёт четыре файла на сервер: `compose.yaml`, `nginx.conf`, `image.env`, `deploy.sh`. Скрипт выполняет `docker compose pull` и `docker compose up -d`, затем отмечает применённый выпуск ссылкой `current`. Все тесты выполняются в репозитории приложения до публикации образа. В Deployment нет тестов, healthcheck, ожидания готовности или HTTP-проверок.
+Workflow передаёт пять файлов на сервер: `compose.yaml`, `nginx.conf`, `image.env`, `catalog.env`, `deploy.sh`. Скрипт сравнивает файлы версий с последними применёнными файлами в `state/`. Он скачивает и применяет только изменившиеся сервисы. Все тесты выполняются в репозиториях приложений до публикации образов. В Deployment нет тестов, healthcheck, ожидания готовности или HTTP-проверок.
+
+| Изменение | Команды на сервере |
+| --- | --- |
+| Только image.env | `compose pull api` и `compose up -d --no-deps api` |
+| Только catalog.env | `compose pull catalog` и `compose up -d --no-deps catalog` |
+| Оба файла версий | `compose pull api catalog` и `compose up -d --no-deps api catalog` |
+| compose.yaml, nginx.conf, deploy.sh или первый запуск | Применение обоих приложений и пересоздание NGINX |
+| Ничего не изменилось | Без pull и up |
+
+Сравнение идёт с фактически применённым состоянием, а не только с предыдущим Git-коммитом. Поэтому пропущенный ожидающий запуск GitHub не теряет обновление второго сервиса. Ошибки Git-push при одновременной записи двух CI обрабатываются повтором с получением актуальной main.
+
+Конфигурация NGINX монтируется из постоянного `/home/deploy/hello-demo/config/nginx.conf`. При смене версии только приложения NGINX не перезапускается и его файл не переписывается. Динамическое разрешение DNS Docker позволяет ему найти новый контейнер сервиса. В логах CD показываются ID контейнеров до и после применения.
 
 ## Где что лежит
 
 - Адрес: http://45.155.204.229/
+- Catalog: http://45.155.204.229/catalog/
 - Релизы: `/home/deploy/hello-demo/releases/<SHA коммита Deployment>`.
 - Последний применённый выпуск: `/home/deploy/hello-demo/current`.
+- Применённые файлы конфигурации и версий: `/home/deploy/hello-demo/state/`.
 - Docker Compose project: `hello-demo`.
 - API доступен только из Docker-сети; наружу опубликован NGINX на TCP 80.
 
-`image.env` хранит только ссылку на образ, это не секрет. Образ учебного приложения опубликован в GHCR публично, поэтому серверу не нужен пароль от registry.
+`image.env` и `catalog.env` хранят только ссылки на образы, это не секреты. Учебные образы опубликованы в GHCR публично, поэтому серверу не нужен пароль от registry.
 
 ## Секреты GitHub Actions
 
@@ -31,15 +45,16 @@ SSH-ключ на сервере записан с `restrict`: без интер
 
 ```bash
 cd /home/deploy/hello-demo/current
-docker compose --env-file image.env ps
-docker compose --env-file image.env logs --tail 100
+export DEPLOY_ROOT="$HOME/hello-demo"
+docker compose --env-file image.env --env-file catalog.env ps
+docker compose --env-file image.env --env-file catalog.env logs --tail 100
 ```
 
 ## Выпуск и откат
 
-Обычный выпуск: push кода в main Account-Service-Hello — дальше всё автоматически.
-Изменения `image.env`, `compose.yaml`, `nginx.conf`, `deploy.sh` или самого workflow автоматически запускают деплой после push в main. Повторить запуск можно кнопкой **Actions → Deploy hello world → Run workflow**.
-Откат: вернуть предыдущий digest в `image.env`, закоммитить и отправить в main Deployment-Hello. Для остановки автоматических выпусков можно отключить workflow приложения или удалить его write deploy key в настройках Deployment-Hello.
+Обычный выпуск: push кода в main нужного сервиса — дальше всё автоматически. CI другого сервиса не запускается, его образ не собирается и не публикуется.
+Изменения `image.env`, `catalog.env`, `compose.yaml`, `nginx.conf`, `deploy.sh` или самого workflow автоматически запускают деплой после push в main. Повторить запуск можно кнопкой **Actions → Deploy changed services → Run workflow**.
+Откат: вернуть предыдущий digest только в файле нужного сервиса, закоммитить и отправить в main Deployment-Hello. Остальные контейнеры не затрагиваются. Для остановки автоматических выпусков можно отключить workflow приложения или удалить его write deploy key в настройках Deployment-Hello.
 
 ## Границы примера
 
