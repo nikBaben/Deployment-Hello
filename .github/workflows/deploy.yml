@@ -32,7 +32,7 @@ jobs:
           ssh -T -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p /home/deploy/hello-demo/releases/$GITHUB_SHA"
           tar -czf - compose.yaml nginx.conf image.env deploy.sh |
             ssh -T -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "tar -xzf - -C /home/deploy/hello-demo/releases/$GITHUB_SHA"
-      - name: Deploy and check HTTP response
+      - name: Apply deployment
         run: |
           ssh -T -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "bash /home/deploy/hello-demo/releases/$GITHUB_SHA/deploy.sh"
       - name: Remove SSH credentials
