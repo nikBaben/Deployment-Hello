@@ -2,7 +2,7 @@ name: Deploy hello world
 on:
   push:
     branches: [main]
-    paths: [image.env]
+    paths: [image.env, compose.yaml, nginx.conf, deploy.sh, .github/workflows/deploy.yml]
   workflow_dispatch:
 permissions:
   contents: read

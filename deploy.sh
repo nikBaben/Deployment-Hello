@@ -11,8 +11,8 @@ if ! compose up -d --wait --wait-timeout 120; then
   compose logs --no-color --tail 80
   exit 1
 fi
-curl --fail --silent --show-error --retry 12 --retry-connrefused --retry-delay 2 http://127.0.0.1/ > response.txt
-test "$(cat response.txt)" = 'hello world'
+STATUS=$(curl --fail --silent --show-error --retry 12 --retry-connrefused --retry-delay 2 --output response.txt --write-out '%{http_code}' http://127.0.0.1/)
+test "$STATUS" = '200'
 ln -sfn "$PWD" "$HOME/hello-demo/current"
 compose ps
 printf 'Deployment succeeded: %s\n' "$(cat image.env)"

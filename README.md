@@ -7,7 +7,7 @@
 
 В [Account-Service-Hello](https://github.com/nikBaben/Account-Service-Hello) проходят тесты и сборка. Его workflow отдельным SSH deploy key коммитит новый digest в `image.env`. Push этого файла в `main` запускает `.github/workflows/deploy.yml`.
 
-Workflow передаёт четыре файла на сервер: `compose.yaml`, `nginx.conf`, `image.env`, `deploy.sh`. Скрипт скачивает готовые образы, обновляет контейнеры, проверяет ответ `hello world` и отмечает успешный выпуск ссылкой `current`.
+Workflow передаёт четыре файла на сервер: `compose.yaml`, `nginx.conf`, `image.env`, `deploy.sh`. Скрипт скачивает готовые образы, обновляет контейнеры, проверяет HTTP 200 от API через NGINX и отмечает успешный выпуск ссылкой `current`. Точное тело ответа проверяется тестами приложения; изменение текста не требует правок Deployment.
 
 ## Где что лежит
 
@@ -38,7 +38,7 @@ docker compose --env-file image.env logs --tail 100
 ## Выпуск и откат
 
 Обычный выпуск: push кода в main Account-Service-Hello — дальше всё автоматически.
-Изменения `compose.yaml`, `nginx.conf` или `deploy.sh` выпускаются кнопкой **Actions → Deploy hello world → Run workflow**. Автозапуск привязан только к изменению `image.env`.
+Изменения `image.env`, `compose.yaml`, `nginx.conf`, `deploy.sh` или самого workflow автоматически запускают деплой после push в main. Повторить запуск можно кнопкой **Actions → Deploy hello world → Run workflow**.
 Откат: вернуть предыдущий digest в `image.env`, закоммитить и отправить в main Deployment-Hello. Для остановки автоматических выпусков можно отключить workflow приложения или удалить его write deploy key в настройках Deployment-Hello.
 
 ## Границы примера
